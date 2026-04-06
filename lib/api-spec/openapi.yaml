@@ -1,0 +1,1054 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Cribs API — Instagram meets Zillow social real estate app
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: listings
+    description: Listing operations
+  - name: reactions
+    description: Reaction operations
+  - name: comments
+    description: Comment operations
+  - name: users
+    description: User profile operations
+  - name: saves
+    description: Save/bookmark operations
+  - name: hashtags
+    description: Hashtag operations
+  - name: map
+    description: Map data operations
+  - name: sync
+    description: Data sync operations
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /listings:
+    get:
+      operationId: getListings
+      tags: [listings]
+      summary: Get paginated listing feed
+      parameters:
+        - name: tab
+          in: query
+          schema:
+            type: string
+            enum: [for_you, gone_wild, just_dropped, gone, slashed, dream_homes, nightmares, near_me]
+          description: Feed tab filter
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: hashtag
+          in: query
+          schema:
+            type: string
+          description: Filter by hashtag
+        - name: lat
+          in: query
+          schema:
+            type: number
+          description: User latitude for near_me tab
+        - name: lng
+          in: query
+          schema:
+            type: number
+          description: User longitude for near_me tab
+        - name: radius
+          in: query
+          schema:
+            type: number
+            default: 50
+          description: Radius in miles for near_me tab
+      responses:
+        "200":
+          description: Feed listings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListingFeedResponse"
+
+  /listings/trending:
+    get:
+      operationId: getTrendingListings
+      tags: [listings]
+      summary: Get trending listings in last 24h
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Trending listings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ListingWithStats"
+
+  /listings/stats:
+    get:
+      operationId: getListingStats
+      tags: [listings]
+      summary: Get aggregate stats across all listings
+      responses:
+        "200":
+          description: Aggregate stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListingStats"
+
+  /listings/{id}:
+    get:
+      operationId: getListing
+      tags: [listings]
+      summary: Get single listing with full details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Listing detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListingDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /listings/{id}/comps:
+    get:
+      operationId: getListingComps
+      tags: [listings]
+      summary: Get nearby comparable sales for a listing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 5
+      responses:
+        "200":
+          description: Comparable sales
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CompSale"
+
+  /listings/{id}/reactions:
+    get:
+      operationId: getListingReactions
+      tags: [reactions]
+      summary: Get reaction counts for a listing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Reaction counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReactionCounts"
+    post:
+      operationId: toggleReaction
+      tags: [reactions]
+      summary: Toggle a reaction on a listing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ToggleReactionBody"
+      responses:
+        "200":
+          description: Updated reaction counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReactionCounts"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /listings/{id}/comments:
+    get:
+      operationId: getListingComments
+      tags: [comments]
+      summary: Get comments for a listing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [top, new]
+            default: top
+      responses:
+        "200":
+          description: Comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Comment"
+    post:
+      operationId: createComment
+      tags: [comments]
+      summary: Create a comment on a listing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCommentBody"
+      responses:
+        "201":
+          description: Created comment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /comments/{id}/vote:
+    post:
+      operationId: voteComment
+      tags: [comments]
+      summary: Upvote or downvote a comment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoteCommentBody"
+      responses:
+        "200":
+          description: Updated vote score
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentVoteResult"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/me:
+    get:
+      operationId: getMe
+      tags: [users]
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateMe
+      tags: [users]
+      summary: Update current user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserBody"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/me/sync:
+    post:
+      operationId: syncUser
+      tags: [users]
+      summary: Sync Supabase auth user to local DB profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncUserBody"
+      responses:
+        "200":
+          description: Synced user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{username}:
+    get:
+      operationId: getUserByUsername
+      tags: [users]
+      summary: Get public user profile by username
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /saves:
+    get:
+      operationId: getSaves
+      tags: [saves]
+      summary: Get current user's saved listings
+      parameters:
+        - name: collection
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Saved listings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SavedListing"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: saveListing
+      tags: [saves]
+      summary: Save a listing to a collection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveListingBody"
+      responses:
+        "201":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedListing"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /saves/{listingId}:
+    delete:
+      operationId: unsaveListing
+      tags: [saves]
+      summary: Remove a listing from saves
+      parameters:
+        - name: listingId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Unsaved
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /saves/collections:
+    get:
+      operationId: getSaveCollections
+      tags: [saves]
+      summary: Get user's save collection names
+      responses:
+        "200":
+          description: Collection names
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /hashtags/trending:
+    get:
+      operationId: getTrendingHashtags
+      tags: [hashtags]
+      summary: Get trending hashtags in last 7 days
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Trending hashtags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HashtagCount"
+
+  /map/listings:
+    get:
+      operationId: getMapListings
+      tags: [map]
+      summary: Get all listings with coordinates for map view
+      parameters:
+        - name: bounds
+          in: query
+          schema:
+            type: string
+          description: "Bounding box: sw_lat,sw_lng,ne_lat,ne_lng"
+        - name: filter
+          in: query
+          schema:
+            type: string
+            enum: [all, gems, active, sold]
+            default: all
+      responses:
+        "200":
+          description: Map listings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MapListing"
+
+  /sync:
+    post:
+      operationId: triggerSync
+      tags: [sync]
+      summary: Trigger SimplyRETS data sync
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResult"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    ListingWithStats:
+      type: object
+      properties:
+        id:
+          type: string
+        mlsId:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        neighborhood:
+          type: string
+        state:
+          type: string
+        zip:
+          type: string
+        price:
+          type: integer
+        originalPrice:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          enum: [active, pending, sold, back_on_market]
+        beds:
+          type: integer
+        bathsFull:
+          type: integer
+        bathsHalf:
+          type: integer
+        sqft:
+          type: integer
+        yearBuilt:
+          type: integer
+          nullable: true
+        propertyType:
+          type: string
+        photos:
+          type: array
+          items:
+            type: string
+        latitude:
+          type: number
+          nullable: true
+        longitude:
+          type: number
+          nullable: true
+        pricePerSqft:
+          type: number
+          nullable: true
+        areaAvgPricePerSqft:
+          type: number
+          nullable: true
+        valueBadge:
+          type: string
+          nullable: true
+          enum: [gem, fair, sus, delusional, null]
+        soldPrice:
+          type: integer
+          nullable: true
+        listedAt:
+          type: string
+          nullable: true
+        soldAt:
+          type: string
+          nullable: true
+        fireCount:
+          type: integer
+        grossCount:
+          type: integer
+        wtfCount:
+          type: integer
+        flexCount:
+          type: integer
+        gemCount:
+          type: integer
+        commentCount:
+          type: integer
+        topComment:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Comment"
+        hashtags:
+          type: array
+          items:
+            type: string
+        userReactions:
+          type: array
+          items:
+            type: string
+          description: Reaction types the current user has applied
+        isSaved:
+          type: boolean
+      required:
+        - id
+        - address
+        - city
+        - state
+        - price
+        - status
+        - beds
+        - bathsFull
+        - bathsHalf
+        - sqft
+        - photos
+        - fireCount
+        - grossCount
+        - wtfCount
+        - flexCount
+        - gemCount
+        - commentCount
+        - hashtags
+        - userReactions
+        - isSaved
+
+    ListingFeedResponse:
+      type: object
+      properties:
+        listings:
+          type: array
+          items:
+            $ref: "#/components/schemas/ListingWithStats"
+        total:
+          type: integer
+        hasMore:
+          type: boolean
+      required: [listings, total, hasMore]
+
+    ListingDetail:
+      allOf:
+        - $ref: "#/components/schemas/ListingWithStats"
+        - type: object
+          properties:
+            description:
+              type: string
+              nullable: true
+            lotSize:
+              type: integer
+              nullable: true
+            stories:
+              type: integer
+              nullable: true
+            garage:
+              type: string
+              nullable: true
+            heating:
+              type: string
+              nullable: true
+            cooling:
+              type: string
+              nullable: true
+            amenities:
+              type: array
+              items:
+                type: string
+            rawData:
+              type: object
+              nullable: true
+
+    ListingStats:
+      type: object
+      properties:
+        totalListings:
+          type: integer
+        activeListings:
+          type: integer
+        soldListings:
+          type: integer
+        pendingListings:
+          type: integer
+        gemCount:
+          type: integer
+        delusionalCount:
+          type: integer
+        avgPrice:
+          type: number
+        avgPricePerSqft:
+          type: number
+        lastSyncedAt:
+          type: string
+          nullable: true
+      required:
+        - totalListings
+        - activeListings
+        - soldListings
+        - pendingListings
+        - gemCount
+        - delusionalCount
+        - avgPrice
+        - avgPricePerSqft
+
+    CompSale:
+      type: object
+      properties:
+        id:
+          type: string
+        address:
+          type: string
+        price:
+          type: integer
+        sqft:
+          type: integer
+        pricePerSqft:
+          type: number
+        status:
+          type: string
+        soldAt:
+          type: string
+          nullable: true
+        beds:
+          type: integer
+        photos:
+          type: array
+          items:
+            type: string
+      required: [id, address, price, sqft, pricePerSqft, status, beds, photos]
+
+    ReactionCounts:
+      type: object
+      properties:
+        fireCount:
+          type: integer
+        grossCount:
+          type: integer
+        wtfCount:
+          type: integer
+        flexCount:
+          type: integer
+        gemCount:
+          type: integer
+        userReactions:
+          type: array
+          items:
+            type: string
+      required: [fireCount, grossCount, wtfCount, flexCount, gemCount, userReactions]
+
+    ToggleReactionBody:
+      type: object
+      properties:
+        reactionType:
+          type: string
+          enum: [fire, gross, wtf, flex, gem]
+        userId:
+          type: string
+      required: [reactionType, userId]
+
+    Comment:
+      type: object
+      properties:
+        id:
+          type: string
+        listingId:
+          type: string
+        userId:
+          type: string
+        parentCommentId:
+          type: string
+          nullable: true
+        body:
+          type: string
+        upvotes:
+          type: integer
+        downvotes:
+          type: integer
+        netScore:
+          type: integer
+        userVote:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+        user:
+          $ref: "#/components/schemas/CommentUser"
+        replies:
+          type: array
+          items:
+            $ref: "#/components/schemas/Comment"
+      required:
+        - id
+        - listingId
+        - userId
+        - body
+        - upvotes
+        - downvotes
+        - netScore
+        - createdAt
+        - user
+        - replies
+
+    CommentUser:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        flair:
+          type: string
+          enum: [just_looking, agent, priced_out, flipper, investor]
+      required: [id, username, flair]
+
+    CreateCommentBody:
+      type: object
+      properties:
+        body:
+          type: string
+          maxLength: 280
+        parentCommentId:
+          type: string
+          nullable: true
+        userId:
+          type: string
+      required: [body, userId]
+
+    VoteCommentBody:
+      type: object
+      properties:
+        vote:
+          type: integer
+          enum: [1, -1]
+        userId:
+          type: string
+      required: [vote, userId]
+
+    CommentVoteResult:
+      type: object
+      properties:
+        upvotes:
+          type: integer
+        downvotes:
+          type: integer
+        netScore:
+          type: integer
+        userVote:
+          type: integer
+          nullable: true
+      required: [upvotes, downvotes, netScore]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        flair:
+          type: string
+          enum: [just_looking, agent, priced_out, flipper, investor]
+        createdAt:
+          type: string
+      required: [id, username, flair, createdAt]
+
+    UserProfile:
+      allOf:
+        - $ref: "#/components/schemas/User"
+        - type: object
+          properties:
+            totalReactionsGiven:
+              type: integer
+            totalComments:
+              type: integer
+            totalSaves:
+              type: integer
+            tasteProfile:
+              type: string
+              nullable: true
+
+    UpdateUserBody:
+      type: object
+      properties:
+        username:
+          type: string
+        bio:
+          type: string
+          nullable: true
+        flair:
+          type: string
+          enum: [just_looking, agent, priced_out, flipper, investor]
+        avatarUrl:
+          type: string
+          nullable: true
+
+    SyncUserBody:
+      type: object
+      properties:
+        supabaseId:
+          type: string
+        email:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        username:
+          type: string
+          nullable: true
+      required: [supabaseId]
+
+    SavedListing:
+      type: object
+      properties:
+        id:
+          type: string
+        listingId:
+          type: string
+        collectionName:
+          type: string
+        createdAt:
+          type: string
+        listing:
+          $ref: "#/components/schemas/ListingWithStats"
+      required: [id, listingId, collectionName, createdAt, listing]
+
+    SaveListingBody:
+      type: object
+      properties:
+        listingId:
+          type: string
+        collectionName:
+          type: string
+          default: "All saved"
+        userId:
+          type: string
+      required: [listingId, userId]
+
+    HashtagCount:
+      type: object
+      properties:
+        hashtag:
+          type: string
+        count:
+          type: integer
+      required: [hashtag, count]
+
+    MapListing:
+      type: object
+      properties:
+        id:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        price:
+          type: integer
+        address:
+          type: string
+        valueBadge:
+          type: string
+          nullable: true
+          enum: [gem, fair, sus, delusional, null]
+        status:
+          type: string
+        pricePerSqft:
+          type: number
+          nullable: true
+        fireCount:
+          type: integer
+        photos:
+          type: array
+          items:
+            type: string
+      required: [id, latitude, longitude, price, address, status, fireCount, photos]
+
+    SyncResult:
+      type: object
+      properties:
+        inserted:
+          type: integer
+        updated:
+          type: integer
+        total:
+          type: integer
+        duration:
+          type: number
+      required: [inserted, updated, total, duration]

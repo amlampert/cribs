@@ -1,0 +1,415 @@
+Cribs — Technical Spec for Replit Agent
+What to build
+A mobile-first social media web app called Cribs where every post is a real estate listing. Users scroll a feed of homes (active, sold, price-reduced), react with house-specific emoji reactions, comment, and explore a neighborhood heatmap. Think Instagram meets Zillow meets r/ZillowGoneWild.
+The app should feel like a social media app first, real estate tool second. Entertainment and commentary drive engagement, not search intent.
+
+Tech stack
+
+Frontend: Next.js with React, Tailwind CSS
+Backend/Database: Supabase (auth, Postgres database, real-time subscriptions)
+Listing Data: SimplyRETS demo API (credentials: username simplyrets, password simplyrets, endpoint https://api.simplyrets.com/properties)
+Maps: Mapbox GL JS (free tier) for heatmap view
+Image optimization: Next.js Image component with SimplyRETS photo URLs
+Deployment: Replit hosting
+
+
+Brand
+
+Name: Cribs
+Logo: A simple house icon inside a rounded red (#E24B4A) square, with "cribs" in lowercase next to it
+Vibe: Clean, modern, mobile-native. White cards, full-bleed photos, bold prices. The design should feel like Instagram — not like a real estate search portal
+Font: System font stack (Inter or similar sans-serif)
+
+
+Pages and features
+1. Feed (home page, /)
+A vertical infinite-scroll feed of listing cards. Each card contains:
+Photo section:
+
+Full-width hero image from the listing photos array
+Swipeable photo carousel (left/right) with dot indicators
+Photo count badge in top-right corner (e.g., "1 / 24")
+Category badge in top-left corner (auto-assigned, see below)
+
+Price overlay (bottom of photo, over a subtle dark gradient):
+
+Price status label in smaller text above the price:
+
+"Just dropped" — new/active listing (status: Active)
+"Gone for" — sold listing (status: Closed), show sale price large, list price struck through below
+"Slashed -$Xk" — listing with price reduction, show current price large, original price struck through below
+"Pending" — under contract (status: Pending)
+"Back from the dead" — listing that was pending and came back to active
+
+
+Price in large bold white text (e.g., "$1,250,000")
+Value badge in bottom-right corner of the photo (colored pill):
+
+Green (#1D9E75) "Gem" — listing $/sqft is more than 15% below neighborhood average
+No badge — within ±15% of average (don't show "Fair", just omit)
+Amber (#BA7517) "Sus" — 15-30% above neighborhood average
+Red (#E24B4A) "Delusional" — more than 30% above neighborhood average
+
+
+
+Info section (below photo, white background):
+
+Street address (bold, 16px)
+Neighborhood/city (muted text, 13px)
+Stats row: beds, baths, sqft, $/sqft (13px, muted, separated by spacing)
+Comp context bar — a small colored banner showing: "Area avg: $X/sqft — this one's Y% [over/under] comps" with background color matching the value badge color (green for under, amber for slightly over, red for way over)
+
+Reaction bar:
+
+Six reaction buttons in a row, evenly spaced, with emoji above and count below:
+
+🔥 (fire / dream home)
+🤮 (gross / nightmare)
+💀 (WTF)
+💰 (flex / money)
+💎 (gem / good deal)
+💬 (comment — opens comment thread)
+Share icon (SVG arrow, opens native share sheet or copy link)
+
+
+Tapping a reaction toggles it (like/unlike behavior). A user can react with multiple reactions on the same listing.
+Reaction counts update in real-time via Supabase realtime subscriptions
+
+Hashtags:
+
+Row of pill-shaped tags below the reaction bar
+Auto-generated from listing data where possible:
+
+Property type: #Craftsman, #MidCenturyModern, #Ranch, #Colonial, #Condo, #Townhouse
+Features: #PoolHome, #ViewProperty, #NewBuild, #Fixer
+Price tier: #MillionDollarListing, #UnderHalfMil
+
+
+Users can add custom hashtags in comments (anything prefixed with #)
+Tapping a hashtag filters the feed to all listings with that tag
+
+Comment preview:
+
+Show one top comment (highest upvoted) with username in bold + comment text
+"View all X comments" link below in muted text
+Tapping opens the full comment thread
+
+Feed tabs (horizontal scrollable pills at top of feed):
+
+"For you" (default — all listings sorted by engagement/recency)
+"Gone wild" (sorted by highest 💀 + 🤮 reaction count)
+"Just dropped" (newest listings, chronological)
+"Gone" (sold listings only, sorted by engagement)
+"Slashed" (price-reduced listings only)
+"Dream homes" (sorted by highest 🔥 count)
+"Nightmares" (sorted by highest 🤮 count)
+"Near me" (geo-filtered, requires location permission)
+
+2. Listing detail page (/listing/[id])
+Expanded view of a single listing:
+
+Full photo gallery (grid or swipeable fullscreen)
+All info from the feed card
+Full property description from MLS
+Property details (year built, lot size, stories, garage, heating/cooling, etc.)
+Map showing the listing location with a pin
+Comp context section — show 3-5 nearby recent sales with their $/sqft for comparison
+Full comment thread (see Comments below)
+Reaction bar (same as feed, sticky at bottom)
+
+3. Comments (/listing/[id] — lower section or sheet)
+
+Threaded replies (one level of nesting)
+Each comment shows: user avatar, username, timestamp, comment text, upvote/downvote buttons with net score
+Sort by "Top" (highest net upvotes) or "New" (chronological)
+User flair badges next to usernames:
+
+"Just Looking" (default)
+"Agent" (self-selected, verified later)
+"Priced Out" (self-selected)
+"Flipper" (self-selected)
+"Investor" (self-selected)
+
+
+Reply button on each comment
+Hashtags in comments (prefixed with #) become tappable and attach to the listing
+280 character limit per comment to keep things punchy
+Report button on each comment
+
+4. Map view (/map)
+Full-screen interactive map (Mapbox GL JS) with:
+Listing pins:
+
+Each listing is a circular pin on the map
+Pin color matches value badge: green (gem), gray (fair), amber (sus), red (delusional)
+Tapping a pin shows a mini-card popup with: photo thumbnail, price, address, value badge, $/sqft, reaction counts
+Tapping the mini-card opens the full listing detail page
+
+Heatmap overlay toggle (horizontal pills at top of map):
+
+"$/sqft" — color-coded zones by price per square foot (green = cheaper, red = expensive)
+"Median price" — neighborhood-level median prices
+"Gems" — only shows listings with "Gem" value badge
+"Activity" — heatmap based on reaction/comment density (where the conversation is hottest)
+
+Map controls:
+
+Standard pinch-to-zoom, pan
+"My location" button
+Search bar for address/neighborhood
+
+5. Explore / Search (/explore)
+
+Search bar at top (search by address, neighborhood, city, zip, or hashtag)
+Trending hashtags section (most-used hashtags in last 7 days)
+"Trending listings" — highest engagement in last 24 hours
+Neighborhood browse — grid of neighborhood cards with avg $/sqft and listing count
+
+6. Saved (/saved)
+
+Grid view of all bookmarked listings
+Save button (heart or bookmark icon) on every listing card in the feed
+User can create named collections (e.g., "Dream homes", "Show partner", "LOL")
+Default collection: "All saved"
+
+7. User profile (/profile and /user/[username])
+
+Avatar, username, bio (editable on own profile)
+User flair selection
+Stats: total reactions given, comments posted, listings saved
+"Taste" section — auto-generated from engagement: "You mostly look at: 3-4 bed homes, $600k-$900k, Highland Park / Echo Park / Eagle Rock"
+Tab: "Comments" — history of all comments
+Tab: "Saved" — saved listings
+Settings: notification preferences, account management
+
+8. Auth
+
+Supabase Auth with Google and Apple sign-in
+Guest browsing allowed (can view feed, listings, comments, map)
+Account required to: react, comment, save, create collections
+Username chosen at signup (unique, alphanumeric + underscores)
+
+
+Data model (Supabase/Postgres)
+Tables
+listings
+
+id (uuid, primary key)
+mls_id (text, unique — from SimplyRETS)
+address (text)
+city (text)
+neighborhood (text)
+state (text)
+zip (text)
+price (integer)
+original_price (integer, nullable — for tracking reductions)
+status (enum: active, pending, sold, back_on_market)
+beds (integer)
+baths_full (integer)
+baths_half (integer)
+sqft (integer)
+lot_size (integer)
+year_built (integer)
+property_type (text)
+description (text)
+photos (text array — URLs)
+latitude (float)
+longitude (float)
+price_per_sqft (float, computed)
+area_avg_price_per_sqft (float, computed periodically)
+value_badge (enum: gem, fair, sus, delusional — computed)
+listed_at (timestamp)
+sold_at (timestamp, nullable)
+sold_price (integer, nullable)
+raw_data (jsonb — full SimplyRETS response for future use)
+created_at (timestamp)
+updated_at (timestamp)
+
+reactions
+
+id (uuid, primary key)
+listing_id (uuid, foreign key → listings)
+user_id (uuid, foreign key → users)
+reaction_type (enum: fire, gross, wtf, flex, gem, comment)
+created_at (timestamp)
+unique constraint on (listing_id, user_id, reaction_type)
+
+comments
+
+id (uuid, primary key)
+listing_id (uuid, foreign key → listings)
+user_id (uuid, foreign key → users)
+parent_comment_id (uuid, nullable, foreign key → comments — for threading)
+body (text, max 280 chars)
+upvotes (integer, default 0)
+downvotes (integer, default 0)
+created_at (timestamp)
+
+comment_votes
+
+id (uuid, primary key)
+comment_id (uuid, foreign key → comments)
+user_id (uuid, foreign key → users)
+vote (integer: 1 or -1)
+unique constraint on (comment_id, user_id)
+
+users
+
+id (uuid, primary key — matches Supabase auth.users)
+username (text, unique)
+avatar_url (text, nullable)
+bio (text, nullable, max 160 chars)
+flair (enum: just_looking, agent, priced_out, flipper, investor)
+created_at (timestamp)
+
+saves
+
+id (uuid, primary key)
+listing_id (uuid, foreign key → listings)
+user_id (uuid, foreign key → users)
+collection_name (text, default "All saved")
+created_at (timestamp)
+unique constraint on (listing_id, user_id, collection_name)
+
+listing_hashtags
+
+id (uuid, primary key)
+listing_id (uuid, foreign key → listings)
+hashtag (text, lowercase, no # prefix)
+source (enum: auto, user)
+created_at (timestamp)
+
+Database views
+listing_feed — a view that joins listings with aggregated reaction counts:
+sqlSELECT 
+  l.*,
+  COUNT(r.id) FILTER (WHERE r.reaction_type = 'fire') as fire_count,
+  COUNT(r.id) FILTER (WHERE r.reaction_type = 'gross') as gross_count,
+  COUNT(r.id) FILTER (WHERE r.reaction_type = 'wtf') as wtf_count,
+  COUNT(r.id) FILTER (WHERE r.reaction_type = 'flex') as flex_count,
+  COUNT(r.id) FILTER (WHERE r.reaction_type = 'gem') as gem_count,
+  COUNT(c.id) as comment_count
+FROM listings l
+LEFT JOIN reactions r ON r.listing_id = l.id
+LEFT JOIN comments c ON c.listing_id = l.id
+GROUP BY l.id
+
+Data ingestion (SimplyRETS sync)
+Create a server-side function (Next.js API route or Supabase Edge Function) that:
+
+Calls GET https://api.simplyrets.com/properties with auth simplyrets:simplyrets
+Paginates through all results (use limit=500&lastId=0, follow the Link header for next page)
+For each listing, upsert into the listings table (match on mls_id)
+Compute price_per_sqft = price / sqft
+Compute area_avg_price_per_sqft — average $/sqft of all listings within the same city
+Compute value_badge based on how the listing's $/sqft compares to area average:
+
+More than 15% below → "gem"
+Within ±15% → "fair"
+15-30% above → "sus"
+More than 30% above → "delusional"
+
+
+Auto-generate hashtags based on property data (property type, features mentioned in description, price tier)
+Run this sync on app startup and then every 6 hours (or manually triggered)
+
+
+Design system
+Colors:
+
+Primary red: #E24B4A (logo, accents)
+Gem green: #1D9E75
+Sus amber: #BA7517
+Delusional red: #E24B4A
+Background: white (#FFFFFF)
+Surface/secondary bg: #F5F5F5
+Text primary: #1A1A1A
+Text secondary: #6B6B6B
+Text tertiary: #9B9B9B
+Border: #E5E5E5
+
+Card design:
+
+White background
+Rounded corners (12px)
+Subtle border (0.5px, #E5E5E5)
+No drop shadows
+Full-bleed photos (no padding on image)
+12-16px padding on text content areas
+
+Typography:
+
+Headings: 500 weight
+Body: 400 weight
+Prices: 28px, 500 weight
+Address: 16px, 500 weight
+Stats/meta: 13px, 400 weight, secondary color
+Comments: 13px
+
+Layout:
+
+Mobile-first, max-width 480px centered on desktop
+Bottom tab navigation: Feed, Explore, Map, Saved, Profile
+Feed cards take full width with no horizontal padding (photos edge-to-edge)
+
+Reaction bar:
+
+Emoji at 20-22px
+Counts at 11px below each emoji
+Even spacing across full card width
+Light tap highlight on press
+Active/selected state: subtle background circle behind the emoji
+
+
+Bottom navigation
+Five tabs with icons:
+
+Feed — house icon (filled when active)
+Explore — magnifying glass icon
+Map — map pin icon
+Saved — heart icon
+Profile — person icon
+
+
+Responsive behavior
+
+Mobile (<480px): single column feed, full-width cards
+Tablet (480-1024px): single column feed, centered with max-width
+Desktop (>1024px): single column feed centered, max-width 480px, with map view optionally showing as a sidebar
+
+The app should feel like a mobile app even on desktop. Don't stretch the feed to fill wide screens.
+
+Key interactions
+Scrolling the feed: Infinite scroll, load 10 listings at a time, skeleton loading cards while fetching.
+Reacting: Tap an emoji reaction to toggle it. Immediately update the count optimistically (before server confirms). Show a brief scale-up animation on the emoji when tapped.
+Commenting: Tap the comment icon or "View all comments" to open the comment section. Text input at the bottom with send button. New comments appear immediately (optimistic update). Replying to a comment indents one level.
+Saving: Tap the bookmark icon on any card. Heart fills in. Optionally prompts to add to a collection.
+Sharing: Tap share icon, opens native share sheet (or copies link on desktop).
+Map interaction: Pan and zoom freely. Pins cluster at low zoom levels, spread out as you zoom in. Tap a pin to see the mini-card popup. Tap the mini-card to navigate to the listing detail.
+Photo carousel: Swipe left/right on the listing photo to browse all photos. Dot indicators show position. Tap to open fullscreen gallery.
+
+What NOT to build in V1
+
+User-to-user messaging / DMs
+Agent accounts or listing management
+Mortgage calculator
+Advanced search filters beyond neighborhood/hashtag
+Push notifications
+Native mobile app (web-only for now)
+Sophisticated valuation model beyond simple $/sqft comps
+Permit/assessor data cross-referencing
+User-uploaded content (only MLS listings)
+Moderation tooling beyond basic report button
+Analytics dashboard
+Monetization features
+
+
+Success criteria for the prototype
+
+Feed loads with real listing data from SimplyRETS
+Cards display photos, prices, status labels, stats, value badges, and comp context
+Users can sign up, react, comment, and save
+Comments are threaded and voteable
+Map view shows listing pins with value color-coding
+Feed tabs filter correctly (Gone Wild, Just Dropped, Gone, etc.)
+The app looks and feels like a polished social media app, not a real estate portal
